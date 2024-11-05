@@ -1,0 +1,485 @@
+---
+title: |
+  | Student Academic Risk Prediction: 
+  | Data Overview
+author: "Getty, Turner, Nickols, & Bisgin PHD"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    css: "style.css"
+    includes:
+      in_header: logo.html
+  pdf_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{python py setup}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+```
+
+
+```{python read data and build data frames}
+# Read in the data and turn low_memory off to prevent mixed data types
+PTIS = pd.read_csv("../Data/PAST_TIME_INVARIANT_STUD.csv",low_memory=False)
+
+TVCAA = pd.read_csv("../Data/TIME_VARYING_COURSE_ASSIGN_ACTIVITY.csv",low_memory=False)
+
+TVSA = pd.read_csv("../Data/TIME_VARYING_SEMESTER_ACTIVITY.csv",low_memory=False)
+
+ALL = pd.read_csv("../Data/CSC_587_ProjectData_032324.csv",low_memory=False)
+
+```
+
+```{python functions}
+def autopct_format(values):
+        def my_format(pct):
+            total = sum(values)
+            val = int(round(pct*total/100.0))
+            return '{:.1f}%\n({v:d})'.format(pct, v=val)
+        return my_format
+      
+def print_features(data):
+    # Print the number of rows and columns
+    data_num_rows, data_num_cols = data.shape
+    print("Number of rows:", data_num_rows)
+    print("Number of columns:", data_num_cols, "\n")
+    # display all of the variables with datatype in the headers
+    # Find the maximum length of column names for formatting
+    max_column_len = max([len(col) for col in data.columns])
+
+    # Iterate over DataFrame columns and print column name along with its data type
+    for column_name, dtype in data.dtypes.items():
+        print(f"{column_name.ljust(max_column_len)}: {str(dtype)}")
+
+data = ALL['ASSIGN_COMMENT']
+# sadata = sentiment_analysis(data)
+# print(sadata.head())
+# print(data.head())
+
+```
+
+# Features Data Frames
+
+```{python Features List}
+
+print("TIME_VARYING_SEMESTER_ACTIVITY (TVSA) - Features that change by semester i.e. Age, Overall GPA, etc")
+print_features(TVSA) 
+print("\n")
+print("TIME_VARYING_COURSE_ASSIGN_ACTIVITY (TVCAA) - Features that change by course assignment i.e. assignment scores, etc")
+print_features(TVCAA) 
+print("\n")
+print("PAST_TIME_INVARIANT_STUD (PTIS)- Features that dont change over time i.e. sex, ethnicity, etc")
+print_features(PTIS) 
+print("\n")
+```
+
+# Dependent Variable (DV) 
+## Satisfactory/Unsatisfactory
+
+Satisfactory = Passing Course with D or Better
+Un-Satisfactory = D- and lower, Drop/Withdrawal, Incomplete
+Feature is member of TVSA Data Frame
+
+```{python DV Satisfactory/Unsatisfactory}
+s = TVSA['SATISFACTORY_UNSATISFACTORY'].value_counts()
+fig, (ax2) = plt.subplots(1)
+ax2.pie(s, labels = s.index, autopct=autopct_format(s), colors=['lightgrey', 'lightgreen'])
+ax2.set_title('Satisfactory / Unsatisfactory (DV)')
+plt.show()
+
+# Bar chart of Satisfactory/Unsatisfactory
+# s = TVSA['SATISFACTORY_UNSATISFACTORY'].value_counts()
+# s.plot(kind='bar', color=['lightgrey', 'lightgreen'])
+# plt.title('Satisfactory / Unsatisfactory (DV)')
+# plt.xticks(rotation=0)
+# plt.xlabel('Satisfactory / Unsatisfactory')
+# plt.ylabel('Frequency')
+# plt.grid(True)
+# plt.show()
+
+```
+
+
+# Independent Variables (IVs) - Data to Mine for best predictors
+
+## Time-Varying Semester Activity (TVSA)
+
+### Online Indicator
+
+Online Course Only Indicator
+```{python Onine Course Only Indicator, echo=FALSE}
+t = TVSA['ONLINE_COURSES_ONLY_IND'].value_counts()
+fig, (ax2) = plt.subplots(1)
+ax2.pie(t, labels = t.index, autopct=autopct_format(t), colors=['lightblue', 'lightcoral'])
+ax2.set_title('Online-Courses Only Indicator')
+plt.show()
+
+# t = TVSA['ONLINE_COURSES_ONLY_IND'].value_counts()
+# t.plot(kind='bar', color=['lightgrey', 'lightgreen'])
+# plt.title('Online-Courses Only Indicator')
+# plt.xticks(rotation=0)
+# plt.xlabel('Online-Courses Only Indicator')
+# plt.ylabel('Frequency')
+# plt.grid(True)
+# plt.show()
+
+```
+
+### Course Erolllment Data
+
+Max Course Enrollment
+```{python Max Course Enrollment, echo=FALSE}
+#get data from of MAX_ENROLLMENT
+max_enrollment = TVSA['MAX_ENROLLMENT'].dropna()
+max_enrollment.describe().round()
+fig = plt.figure(figsize = (10,10))
+plt.boxplot(max_enrollment)
+plt.show()
+```
+
+Max Course Enrollment Histogram
+```{python Max Enrollment Histogram, echo=FALSE}
+plt.hist(max_enrollment, bins=10, color='lightblue',edgecolor='black')
+plt.title('Max Enrollment Histogram')
+plt.xlabel('Max Enrollment')
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()
+```
+
+### UMF GPA Data
+
+UMF Overall GPA
+```{python UMF Overall GPA, echo=FALSE}
+UMF_OVERALL_GPA = TVSA['UMF_OVERALL_GPA']
+UMF_OVERALL_GPA.describe().round(2)
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(UMF_OVERALL_GPA)
+plt.show()
+```
+UMF Overall GPA Density Plot
+```{python UMF Overall GPA Density Plot, echo=FALSE}
+sns.kdeplot(UMF_OVERALL_GPA, shade=True, color='skyblue')
+#sns.histplot(UMF_OVERALL_GPA, color='skyblue', edgecolor='black', kde=False)
+plt.title('Density Plot of GPA')
+plt.xlabel('GPA')
+plt.ylabel('Density')
+plt.grid(True)
+plt.show()
+
+```
+
+## Time-Varying Course Assignment Activity (TVCAA)
+
+### Assignment Scores Data
+
+Assignment Score
+```{python Assignment Score, echo=FALSE}
+ASSIGN_SCORE = TVCAA['ASSIGN_SCORE']
+ASSIGN_SCORE.describe().round()
+```
+
+Assignment Score Histogram
+```{python Assignment Score Histogram, echo=FALSE}
+plt.hist(ASSIGN_SCORE, bins=10, color='lightblue',edgecolor='black')
+plt.title('Assignment Score Histogram')
+plt.xlabel('Assignment Score')
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()
+
+
+```
+
+Average Assignment Score
+```{python Average Assignment Score, echo=FALSE}
+AVG_ASSIGN_SCORE = TVCAA['AVG_ASSIGN_SCORE']
+AVG_ASSIGN_SCORE.describe().round()
+
+```
+
+Average Assignment Score Histogram
+```{python Average Assignment Score Histogram, echo=FALSE}
+plt.hist(AVG_ASSIGN_SCORE, bins=5, color='lightblue',edgecolor='black')
+plt.title('Average Assignment Score Histogram')
+plt.xlabel('Average Assignment Score')
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()
+
+```
+
+## Past Time-Invariant Student Data (PTIS)
+
+### Demographics
+
+Gender
+```{python Gender}
+gender = PTIS['GENDER']
+gen = gender.value_counts()
+gen.plot(kind='bar', color=['lightgrey', 'lightgreen'])
+plt.title('Gender Bar Chart')
+plt.xticks(rotation=0)
+plt.xlabel
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()
+
+```
+
+```{python Sex}
+sex = PTIS['SEX']
+sex.value_counts()
+```
+
+Pronouns
+```{python Pronouns}
+pronouns = PTIS['PPRN_DESC']
+pronouns.value_counts()
+```
+
+Age
+```{python age, echo=FALSE}
+age = TVSA['AGE']
+age.value_counts().round()
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(age)
+plt.title('Boxplot of Age')
+plt.ylabel('Age')
+plt.show()
+```
+
+Ethnicity
+```{python Ethnicity}
+ethnicity = PTIS['REPORT_ETHNICITY']
+ethnicity.value_counts()
+eth = ethnicity.value_counts()
+eth.plot(kind='bar', color=['lightgrey', 'lightgreen'])
+plt.title('Ethnicity Bar Chart')
+plt.xticks(rotation=90)
+plt.subplots_adjust(bottom=0.6)
+plt.xlabel
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()
+```
+
+### Incoming Student Scores
+
+High School GPA
+```{python HSCH_GPA, echo=FALSE}
+HSCH_GPA = PTIS['HSCH_GPA'].dropna()
+HSCH_GPA.describe().round(2)
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(HSCH_GPA)
+plt.show()
+
+sns.kdeplot(HSCH_GPA, shade=True, color='skyblue')
+plt.title('Density Plot of HS GPA')
+plt.xlabel('HS GPA')
+plt.ylabel('Density')
+plt.grid(True)
+plt.show()
+```
+
+Previous College GPA
+```{python Previous College GPA, echo=FALSE}
+PCOL_GPA = PTIS['PCOL_GPA'].dropna()
+PCOL_GPA.describe().round(2)
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(PCOL_GPA)
+plt.show()
+
+sns.kdeplot(PCOL_GPA, shade=True, color='skyblue')
+plt.title('Density Plot of PCOL GPA')
+plt.xlabel('PCOL GPA')
+plt.ylabel('Density')
+plt.grid(True)
+plt.show()
+```
+
+ACT Composite
+```{python ACT Composite, echo=FALSE}
+```{python, echo=FALSE}
+ACT_COMPOSITE = PTIS['ACT_COMPOSITE'].dropna()
+ACT_COMPOSITE.describe().round()
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(ACT_COMPOSITE)
+plt.show()
+```
+
+ACT English
+```{python ACT English, echo=FALSE}
+ACT_ENGLISH = PTIS['ACT_ENGLISH'].dropna()
+ACT_ENGLISH.describe().round()
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(ACT_ENGLISH)
+plt.show()
+```
+
+ACT Math
+```{python ACT Math, echo=FALSE}
+ACT_MATH = PTIS['ACT_MATH'].dropna()
+ACT_MATH.describe().round()
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(ACT_MATH)
+plt.show()
+```
+
+ACT Reading
+```{python ACT Reading, echo=FALSE}
+ACT_READING = PTIS['ACT_READING'].dropna()
+ACT_READING.describe().round()
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(UMF_OVERALL_GPA)
+plt.show()
+```
+
+ACT Science Reasoning
+```{python ACT Science Reasoning, echo=FALSE}
+ACT_SCIENCE_REASONING = PTIS['ACT_SCIENCE_REASONING'].dropna()
+ACT_SCIENCE_REASONING.describe().round()
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(ACT_SCIENCE_REASONING)
+plt.show()
+```
+
+ACT Sum of Standard
+```{python ACT Sum of Standard, echo=FALSE}
+ACT_SUM_OF_STANDARD = PTIS['ACT_SUM_OF_STANDARD'].dropna()
+ACT_SUM_OF_STANDARD.describe().round()
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(ACT_SUM_OF_STANDARD)
+plt.show()
+```
+
+SAT Total Combined
+```{python SAT Total Combined, echo=FALSE}
+SAT_TOTAL_COMBINED = PTIS['SAT_TOTAL_COMBINED'].dropna()
+SAT_TOTAL_COMBINED.describe().round()
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(SAT_TOTAL_COMBINED)
+plt.show()
+```
+
+SAT Reading Writing
+```{python SAT Reading Writing, echo=FALSE}
+SAT_READ_WRI = PTIS['SAT_READ_WRI'].dropna()
+SAT_READ_WRI.describe().round()
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(SAT_READ_WRI)
+plt.show()
+```
+
+SAT Math
+```{python SAT Math, echo=FALSE}
+SAT_MATH = PTIS['SAT_MATH'].dropna()
+SAT_MATH.describe().round()
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(SAT_MATH)
+plt.show()
+```
+
+SAT Reading
+```{python SAT Reading, echo=FALSE}
+UMF_TERM_GPA = TVSA['UMF_TERM_GPA'].dropna()
+UMF_TERM_GPA.describe().round(2)
+fig = plt.figure(figsize = (10, 10))
+plt.boxplot(UMF_TERM_GPA)
+plt.show()
+```
+### Account Holds
+
+Hold Description 1
+```{python Hold Description 1, echo=FALSE}
+HOLD_DESC_1 = TVSA['HOLD_DESC_1']
+HOLD_DESC_1.value_counts()
+hld1 = HOLD_DESC_1.value_counts()
+hld1.plot(kind='bar', color=['lightgrey', 'lightgreen'])
+plt.title('HOLD DESC 1')
+plt.xticks(rotation=90)
+plt.subplots_adjust(bottom=0.6)
+plt.xlabel
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()
+
+```
+
+Hold Description 2
+```{python Hold Description 2, echo=FALSE}
+HOLD_DESC_2 = TVSA['HOLD_DESC_2']
+HOLD_DESC_2.value_counts()
+hld2 = HOLD_DESC_2.value_counts()
+hld2.plot(kind='bar', color=['lightgrey', 'lightgreen'])
+plt.title('HOLD DESC 2')
+plt.xticks(rotation=90)
+plt.subplots_adjust(bottom=0.6)
+plt.xlabel
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()
+```
+
+Hold Description 3
+```{python Hold Description 3, echo=FALSE}
+HOLD_DESC_3 = TVSA['HOLD_DESC_3']
+HOLD_DESC_3.value_counts()
+hld3 = HOLD_DESC_3.value_counts()
+hld3.plot(kind='bar', color=['lightgrey', 'lightgreen'])
+plt.title('HOLD DESC 3')
+plt.xticks(rotation=90)
+plt.subplots_adjust(bottom=0.6)
+plt.xlabel
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()
+```
+
+Hold Description 4
+```{python Hold Description 4, echo=FALSE}
+HOLD_DESC_4 = TVSA['HOLD_DESC_4']
+HOLD_DESC_4.value_counts()
+hld4 = HOLD_DESC_4.value_counts()
+hld4.plot(kind='bar', color=['lightgrey', 'lightgreen'])
+plt.title('HOLD DESC 4')
+plt.xticks(rotation=90)
+plt.subplots_adjust(bottom=0.6)
+plt.xlabel
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()
+```
+
+Hold Description 5
+```{python Hold Description 5, echo=FALSE}
+HOLD_DESC_5 = TVSA['HOLD_DESC_5']
+HOLD_DESC_5.value_counts()
+hld = HOLD_DESC_5.value_counts()
+hld.plot(kind='bar', color=['lightgrey', 'lightgreen'])
+plt.title('HOLD DESC 5')
+plt.xticks(rotation=90)
+plt.subplots_adjust(bottom=0.6)
+plt.xlabel
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()
+```
+
+
+
+
+
+
+
+
+
+
+

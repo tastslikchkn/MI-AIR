@@ -1,0 +1,219 @@
+---
+title: |
+  | Student Academic Risk Prediction: 
+  | Support Vector Machines
+author: "Getty, Turner, Nickols, & Bisgin PHD"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    css: "style.css"
+    includes:
+      in_header: logo.html
+  pdf_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+```{python py setup}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+# import seaborn as sns
+```
+
+
+```{python read data and build data frames}
+# Read in the data and turn low_memory off to prevent mixed data types
+data = pd.read_csv("../Data/CSC_587_ProjectData_032324.csv",low_memory=False)
+# print(df_head.to_markdown(tablefmt="grid"))
+```
+
+
+```{python}
+from pandas.api.types import is_numeric_dtype
+
+def clean_data(df):
+  # Cycles through every column in the input dataframe.
+  for column in df.columns:
+    percent_null = df[column].isnull().sum() / len(df)
+    # Replace with mean values in each column.
+    if('SAT_' in column or 'ACT_' in column):
+      mean_value = df[column].mean().round(0)
+      if(percent_null > 0):
+        df[column] = df[column].fillna(mean_value)
+    elif(is_numeric_dtype(df[column])):
+      mean_value = df[column].mean().round(2)
+      if(percent_null > 0):
+        df[column] = df[column].fillna(mean_value)
+
+clean_data(data)
+# data.head()
+```
+
+```{python One Hot Encoding}
+# One Hot Encoding
+data = pd.get_dummies(data, columns = ['GENDER', 'REPORT_ETHNICITY_CODE', 'CLASS_DESC', 'HOLD_CODE_1'])
+# data.head(1000)
+```
+
+# Dependent Variable (DV)
+## Satisfactory/Unsatisfactory
+
+Satisfactory = 1 = "Passing Course with D or Better" 
+
+Un-Satisfactory = 0 = "D- and lower, Drop/Withdrawal, and Incomplete"
+
+```{python Variables}
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+#from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
+#Insert model here. Remember to change
+
+dep = data.SATISFACTORY_UNSATISFACTORY_BIN
+
+model_features = ['GPA_MOD', 'UMF_OVERALL_GPA', 'HSCH_GPA', 'PCOL_GPA']
+
+# Insert independent variables (columns) here in the list.
+# Left out Pacific Islanders because we had none of them in the dataset.
+
+# Full list of categories - Adding all of them did not change the MAE.
+
+# 'GPA_MOD', 'UMF_OVERALL_GPA', 'HSCH_GPA', 'PCOL_GPA', 'UMF_TERM_GPA',
+# 'SAT_TOTAL_COMBINED', 'ACT_COMPOSITE', 'AGE',
+# 'GENDER_F', 'GENDER_M', 'GENDER_N',
+# 'REPORT_ETHNICITY_CODE_1', 'REPORT_ETHNICITY_CODE_2', 'REPORT_ETHNICITY_CODE_3', 'REPORT_ETHNICITY_CODE_4',
+# 'REPORT_ETHNICITY_CODE_5', 'REPORT_ETHNICITY_CODE_7', 'REPORT_ETHNICITY_CODE_8', 'REPORT_ETHNICITY_CODE_9',
+# 'CLASS_DESC_Freshman', 'CLASS_DESC_Sophomore', 'CLASS_DESC_Junior', 'CLASS_DESC_Senior', 'CLASS_DESC_Graduate',
+# 'HOLD_CODE_1_AA', 'HOLD_CODE_1_AC', 'HOLD_CODE_1_AD', 'HOLD_CODE_1_AR', 'HOLD_CODE_1_AS', 'HOLD_CODE_1_CH', 'HOLD_CODE_1_CO',
+# 'HOLD_CODE_1_FA', 'HOLD_CODE_1_GR', 'HOLD_CODE_1_IC', 'HOLD_CODE_1_PE', 'HOLD_CODE_1_SA', 'HOLD_CODE_1_TR'
+
+ind = data[model_features]
+```
+
+```{python MEA, eval=FALSE, include=FALSE}
+# MAE = []
+# 
+# for x in range(1000):
+#   train_ind, test_ind, train_dep, test_dep = train_test_split(ind, dep, random_state = x)
+#   model = DecisionTreeClassifier()
+#   model.fit(train_ind,train_dep)
+#   predictions = model.predict(test_ind).round()
+#   MAE.append(mean_absolute_error(test_dep, predictions))
+# Nested loop is unnecessary. Random state for DecisionTreeClassifier only changes things if there are two splits that are equally good.
+
+# def find_min_index(list):
+#     min_value = min(list)
+#     min_index = list.index(min_value)
+#     return min_index
+# 
+# print('The minimum MAE is: ', min(MAE))
+# print('The index of the minimum MAE is: ', find_min_index(MAE))
+# rnd_tts = find_min_index(MAE)
+```
+
+```{python Train Test Split, include=FALSE}
+# Hard coding rnd_tts to:
+rnd_tts = 2
+train_ind, test_ind, train_dep, test_dep = train_test_split(ind, dep, random_state = rnd_tts)
+model = SVC(kernel='linear', probability=True)
+model.fit(train_ind,train_dep)
+predictions = model.predict(test_ind).round()
+accuracy = model.score(test_ind, test_dep)
+mea = mean_absolute_error(test_dep, predictions)
+```
+
+```{python Classification Report}
+print("The Model is: ", model)
+print("The Mean Absolute Error is: ",mea)
+print("The accuracy of the model is: ", accuracy)
+```
+
+```{python Confusion matrix}
+from sklearn.metrics import confusion_matrix
+
+def confusin_matrix(test_dep, predictions):
+    cm = confusion_matrix(test_dep, predictions).ravel()
+    tn, fp, fn, tp = confusion_matrix(test_dep, predictions).ravel()
+    cm_label = ['True Negative', 'False Positive', 'False Negative', 'True Positive']
+    zip_cm = zip(cm_label, cm)
+    zip_df = pd.DataFrame(zip_cm, columns = ['Confusion Matrix', 'Value'])
+    print(zip_df.to_markdown(index=False,tablefmt="grid"), '\n')
+    
+    sensitivity = tp / (tp + fn)
+    specificity = tn / (tn + fp)
+    print('Sensitivity for this model is: ', sensitivity)
+    print('Specificity for this model is: ', specificity, '\n')
+    
+    # return tn, fp, fn, tp
+
+confusin_matrix(test_dep, predictions)
+```
+
+```{python Feature Importance}
+import pprint
+names = ['GPA_MOD', 'UMF_OVERALL_GPA', 'HSCH_GPA', 'PCOL_GPA', 'UMF_TERM_GPA']
+coef_dict = {}
+for coef, feat in zip(model.coef_[0,:],names):
+    coef_dict[feat] = coef
+    
+print("Feature: Importance: ")
+pprint.pprint(coef_dict)
+```
+
+```{python Feature Importance Viz}
+def f_importances(coef, names, top=-1):
+    imp = coef
+    imp, names = zip(*sorted(list(zip(imp, names))))
+    
+    # Show all features
+    if top == -1:
+        top = len(names)
+
+    plt.barh(range(top), imp[::-1][0:top], align='center')
+    plt.yticks(range(top), names[::-1][0:top])
+    plt.show()
+
+f_importances(abs(model.coef_[0]), model_features, top = 5)
+```
+
+```{python ROC Curve}
+# ROC Curve doesn't work for Decision Tree. 
+# I want you to do model evaluation for each algorithm you do.
+# Play around with it and try to
+
+import numpy as np
+from sklearn.metrics import roc_curve, auc
+#from scipy import interp
+
+scores = model.predict_proba(test_ind)
+fpr, tpr, thresholds = roc_curve(test_dep, scores[:,1], pos_label=1)
+roc_auc = auc(fpr,tpr)
+
+print("FPR")
+print(pd.DataFrame(fpr).head(), "\n")
+print("TPR")
+print(pd.DataFrame(tpr).head(), "\n")
+print("Thresholds")
+print(pd.DataFrame(thresholds).head())
+# print(df.to_markdown(tablefmt="grid"))
+```
+
+```{python  ROC Curve Visualization}
+import matplotlib.pyplot as plt
+plt.figure()
+lw = 2
+plt.plot(fpr, tpr, color='darkorange',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+print("ROC curve X Limit:", plt.xlim([0.0, 1.0]))
+print("ROC curve Y Limit:", plt.ylim([0.0,1.05]))
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+```
+

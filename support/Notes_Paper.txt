@@ -1,0 +1,13 @@
+Notes for paper:
+
+* Be prepared for rejections.
+
+* Trim down the abstract. Push some of the language into the Introduction. The Introduction is weak - it doesn't really introduce the problem.
+
+* Abstract is meant to be a more concise introduction of the problem and solution. Look at some sample abstracts for examples on what to do.
+
+* Either remove the subsection headers, or come up with subsections. Same for abstract. FIE's format doesn't have them.
+
+* Create tables with LaTeX.
+
+* Fix acknowledgments.

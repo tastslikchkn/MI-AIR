@@ -1,0 +1,192 @@
+---
+title: |
+  | Student Academic Risk Prediction: 
+  | K-Nearest Neighbors (KNN)
+author: "Getty, Turner, Nickols, & Bisgin PHD"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    css: "style.css"
+    includes:
+      in_header: logo.html
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{python py setup}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+```
+
+```{python read data and build data frames}
+# Read in the data and turn low_memory off to prevent mixed data types
+data = pd.read_csv("../Data/CSC_587_ProjectData_032324.csv",low_memory=False)
+# print(df_head.to_markdown(tablefmt="grid"))
+```
+
+```{python Cleaning Data}
+from pandas.api.types import is_numeric_dtype
+ 
+def clean_data(df):
+  # Cycles through every column in the input dataframe.
+  for column in df.columns:
+    percent_null = df[column].isnull().sum() / len(df)
+    # Replace with mean values in each column.
+    if('SAT_' in column or 'ACT_' in column):
+      mean_value = df[column].mean().round(0)
+      if(percent_null > 0):
+        df[column] = df[column].fillna(mean_value)
+    elif(is_numeric_dtype(df[column])):
+      mean_value = df[column].mean().round(2)
+      if(percent_null > 0):
+        df[column] = df[column].fillna(mean_value)
+
+clean_data(data)
+# data.head()
+```
+
+```{python One Hot Encoding}
+# One Hot Encoding
+data = pd.get_dummies(data, columns = ['GENDER', 'REPORT_ETHNICITY_CODE', 'CLASS_DESC', 'HOLD_CODE_1'])
+# data.head()
+```
+
+# Dependent Variable (DV)
+## Satisfactory/Unsatisfactory
+
+Satisfactory = 1 = "Passing Course with D or Better" 
+
+Un-Satisfactory = 0 = "D- and lower, Drop/Withdrawal, and Incomplete"
+
+```{python Variables}
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+from sklearn.neighbors import KNeighborsClassifier
+
+
+dep = data.SATISFACTORY_UNSATISFACTORY_BIN
+
+model_features = ['UMF_OVERALL_GPA', 'HSCH_GPA', 'PCOL_GPA',
+                  'SAT_TOTAL_COMBINED', 'AGE']
+
+# Insert independent variables (columns) here in the list.
+# Left out Pacific Islanders because we had none of them in the dataset.
+
+# Full list of categories - Adding all of them did not change the MAE.
+
+# 'GPA_MOD', 'UMF_OVERALL_GPA', 'HSCH_GPA', 'PCOL_GPA', 'UMF_TERM_GPA',
+# 'SAT_TOTAL_COMBINED', 'ACT_COMPOSITE', 'AGE',
+# 'GENDER_F', 'GENDER_M', 'GENDER_N',
+# 'REPORT_ETHNICITY_CODE_1', 'REPORT_ETHNICITY_CODE_2', 'REPORT_ETHNICITY_CODE_3', 'REPORT_ETHNICITY_CODE_4',
+# 'REPORT_ETHNICITY_CODE_5', 'REPORT_ETHNICITY_CODE_7', 'REPORT_ETHNICITY_CODE_8', 'REPORT_ETHNICITY_CODE_9',
+# 'CLASS_DESC_Freshman', 'CLASS_DESC_Sophomore', 'CLASS_DESC_Junior', 'CLASS_DESC_Senior', 'CLASS_DESC_Graduate',
+# 'HOLD_CODE_1_AA', 'HOLD_CODE_1_AC', 'HOLD_CODE_1_AD', 'HOLD_CODE_1_AR', 'HOLD_CODE_1_AS', 'HOLD_CODE_1_CH', 'HOLD_CODE_1_CO',
+# 'HOLD_CODE_1_FA', 'HOLD_CODE_1_GR', 'HOLD_CODE_1_IC', 'HOLD_CODE_1_PE', 'HOLD_CODE_1_SA', 'HOLD_CODE_1_TR'
+
+ind = data[model_features]
+```
+
+```{python MEA, eval=FALSE, include=FALSE}
+# MAE = []
+
+# for x in range(10):
+#   train_ind, test_ind, train_dep, test_dep = train_test_split(ind, dep, random_state = x)
+#   for y in range(1, 11):
+#     model = KNeighborsClassifier(n_neighbors = y)
+#     model.fit(train_ind,train_dep)
+#     predictions = model.predict(test_ind).round()
+#     MAE.append(mean_absolute_error(test_dep, predictions))
+
+
+# def find_min_index(list):
+#     min_value = min(list)
+#     min_index = list.index(min_value)
+#     return min_index
+# 
+# print('The minimum MAE is: ', min(MAE))
+# print('The index of the minimum MAE is: ', find_min_index(MAE))
+# rnd_tts = find_min_index(MAE)
+# rnd_model = int(find_min_index(MAE)%10)
+```
+
+```{python Train Test Split, include=FALSE}
+# Hard coding rnd_tts to:
+rnd_tts = 2
+rnd_model = 10
+train_ind, test_ind, train_dep, test_dep = train_test_split(ind, dep, random_state = rnd_tts)
+model = KNeighborsClassifier(n_neighbors = rnd_model)
+model.fit(train_ind,train_dep)
+predictions = model.predict(test_ind).round()
+accuracy = model.score(test_ind, test_dep)
+accuracy = round(accuracy, 2)
+mea = mean_absolute_error(test_dep, predictions)
+mea = mea.round(2)
+```
+
+```{python Classification Report}
+print("The Model is: ", model)
+print("The Mean Absolute Error is: ",mea)
+print("The accuracy of the model is: ", accuracy)
+```
+
+```{python Confusion matrix}
+from sklearn.metrics import confusion_matrix
+
+def conf_matrix(test_dep, predictions):
+    cm = confusion_matrix(test_dep, predictions).ravel()
+    tn, fp, fn, tp = cm  # Unpack the confusion matrix directly
+    cm_label = ['True Negative', 'False Positive', 'False Negative', 'True Positive']
+    zip_cm = zip(cm_label, cm)
+    zip_df = pd.DataFrame(zip_cm, columns=['Confusion Matrix', 'Value'])
+    print(zip_df.to_markdown(index=False, tablefmt="grid"), '\n')
+
+    sensitivity = tp / (tp + fn)
+    specificity = tn / (tn + fp)
+    print('Sensitivity for this model is: ', sensitivity.round(2))
+    print('Specificity for this model is: ', specificity.round(2), '\n')
+
+    return tn, fp, fn, tp
+
+conf_matrix(test_dep, predictions)
+```
+
+```{python ROC Curve}
+import numpy as np
+from sklearn.metrics import roc_curve, auc
+
+scores = model.predict_proba(test_ind)
+fpr, tpr, thresholds = roc_curve(test_dep, scores[:,1], pos_label=1)
+roc_auc = auc(fpr,tpr)
+
+print("FPR")
+print(pd.DataFrame(fpr).head(), "\n")
+print("TPR")
+print(pd.DataFrame(tpr).head(), "\n")
+print("Thresholds")
+print(pd.DataFrame(thresholds).head())
+# print(df.to_markdown(tablefmt="grid"))
+```
+
+```{python ROC Curve Visualization}
+import matplotlib.pyplot as plt
+plt.figure()
+lw = 2
+plt.plot(fpr, tpr, color='darkorange',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+print("ROC curve X Limit:", plt.xlim([0.0, 1.0]))
+print("ROC curve Y Limit:", plt.ylim([0.0,1.05]))
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc="lower right")
+plt.show()
+```

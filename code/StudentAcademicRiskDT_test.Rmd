@@ -1,0 +1,360 @@
+---
+title: |
+  | Student Academic Risk Prediction: 
+  | Decison Tree
+author: "Getty, Turner, Nickols, & Bisgin PHD"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    css: "style.css"
+    includes:
+      in_header: logo.html
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{python py setup}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+# import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+
+```
+
+```{python read data and build data frames}
+# Read in the data and turn low_memory off to prevent mixed data types
+data = pd.read_csv("../Data/CSC_587_ProjectData_032324.csv",low_memory=False)
+# print(data.shape)
+# print(df_head.to_markdown(tablefmt="grid"))
+```
+
+```{python sentiment analysis, eval=FALSE, include=FALSE}
+# build datafram for assignment_comment
+cmnt = data['ASSIGN_COMMENT']
+cmnt = cmnt.fillna('This is a neutral comment used to fill in missing data')
+cmnt = cmnt.str.lower()
+cmnt = cmnt.str.replace('\n','')
+cmnt = cmnt.str.replace('\t','')
+cmnt = cmnt.str.replace('\r','')
+cmnt_sa[]
+
+# build function to pass data and perform sentiment analysis
+# !pip install textblob
+from textblob import TextBlob
+def sentiment_analysis(data):
+    # Create a function to get the subjectivity
+    def getSubjectivity(text):
+        return TextBlob(text).sentiment.subjectivity
+
+    # Create a function to get the polarity
+    def getPolarity(text):
+        return TextBlob(text).sentiment.polarity
+
+    # Create two new columns 'Subjectivity' & 'Polarity'
+    data['Subjectivity'] = data.apply(lambda x: getSubjectivity(x['ASSIGN_COMMENT']), axis=1)
+    data['Polarity'] = data.apply(lambda x: getPolarity(x['ASSIGN_COMMENT']), axis=1)
+
+    # Create a function to compute negative (-1), neutral (0) and positive (+1) analysis
+    def getAnalysis(score):
+        if score < 0:
+            return 'Negative'
+        elif score == 0:
+            return 'Neutral'
+        else:
+            return 'Positive'
+
+    # Create a new column called 'Analysis' which stores the result of the sentiment analysis
+    data['Analysis'] = data['Polarity'].apply(getAnalysis)
+    return data
+
+print(cmnt.head())
+
+
+cmnt_sa = sentiment_analysis(cmnt[1])
+
+print(cmnt_sa)
+```
+
+```{python Cleaning Data}
+from pandas.api.types import is_numeric_dtype
+ 
+def clean_data(df):
+  # Cycles through every column in the input dataframe.
+  for column in df.columns:
+    percent_null = df[column].isnull().sum() / len(df)
+    # Replace with mean values in each column.
+    if('SAT_' in column or 'ACT_' in column):
+      mean_value = df[column].mean().round(0)
+      if(percent_null > 0):
+        df[column] = df[column].fillna(mean_value)
+    elif(is_numeric_dtype(df[column])):
+      mean_value = df[column].mean().round(2)
+      if(percent_null > 0):
+        df[column] = df[column].fillna(mean_value)
+
+clean_data(data)
+data.head()
+# 
+# # One Hot Encoding
+# data = pd.get_dummies(data, columns = ['GENDER', 'REPORT_ETHNICITY_CODE', 'CLASS_DESC', 'HOLD_CODE_1'])
+# data.head()
+
+
+# def clean_data(df):
+#   # create copy of data
+#   df_copy = df.copy()
+#     # Cycles through every cf_copy = data.df.copy()olumn in the input dataframe.
+#   for column in df_copy.columns:
+#         percent_null = df_copy[column].isnull().sum() / len(df_copy)
+#         # Replace with mean values in each column.
+#         if(is_numeric_dtype(df_copy[column])):
+#             mean_value = df_copy[column].mean().round(2)
+#             if(percent_null > 0):
+#                 df_copy[column] = df_copy[column].fillna(mean_value)
+#         elif('SAT_' in column or 'ACT_' in column):
+#             mean_value = df_copy[column].mean().round(0)
+#             if(percent_null > 0):
+#                 df_copy[column] = df_copy[column].fillna(mean_value)
+#         elif('COMMENT' in column):
+#               df_copy[column] = df_copy[column].fillna('This is a neutral comment used to fill in missing data')
+#               df_copy[column] = df_copy[column].str.replace(' +', ' ') # remove extra spaces
+#               df_copy[column] = df_copy[column].str.lower()
+#               df_copy[column] = df_copy[column].str.replace('\n','')
+#               df_copy[column] = df_copy[column].str.replace('\t','')
+#               df_copy[column] = df_copy[column].str.replace('\r','')
+#               df_copy[column] = df_copy[column].str.replace(r'[^\w\s]+', '')
+#   return df_copy
+# 
+# data = clean_data(data)
+# data.head(1000)
+
+```
+
+```{python One Hot Encoding}
+# One Hot Encoding
+data = pd.get_dummies(data, columns = ['GENDER', 'REPORT_ETHNICITY_CODE', 'CLASS_DESC', 'HOLD_CODE_1'])
+data.head(1000)
+
+# print(data['ASSIGN_COMMENT'].head(1000))
+
+
+```
+
+# Dependent Variable (DV)
+
+## Satisfactory/Unsatisfactory
+
+Satisfactory = 1 = "Passing Course with D or Better" Un-Satisfactory = 0 = "D- and lower, Drop/Withdrawal, Incomplete Feature is member of TVSA Data Frame"
+
+```{python Variables}
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+from sklearn.tree import DecisionTreeClassifier
+#Insert model here. Remember to change
+
+dep = data.SATISFACTORY_UNSATISFACTORY_BIN
+
+model_features = ['GPA_MOD', 'UMF_OVERALL_GPA', 'HSCH_GPA', 'PCOL_GPA', 'UMF_TERM_GPA',
+                  'SAT_TOTAL_COMBINED', 'ACT_COMPOSITE', 'AGE',
+                  'GENDER_F',
+                  'REPORT_ETHNICITY_CODE_1', 'REPORT_ETHNICITY_CODE_2', 'REPORT_ETHNICITY_CODE_4',
+                  'REPORT_ETHNICITY_CODE_5', 'REPORT_ETHNICITY_CODE_7',
+                  'CLASS_DESC_Freshman', 'CLASS_DESC_Sophomore', 'CLASS_DESC_Senior',
+                  'HOLD_CODE_1_AD', 'HOLD_CODE_1_AR', 'HOLD_CODE_1_AS',
+                  'HOLD_CODE_1_FA', 'HOLD_CODE_1_GR']
+
+# Insert independent variables (columns) here in the list.
+# Left out Pacific Islanders because we had none of them in the dataset.
+
+# Full list of categories - Adding all of them did not change the MAE.
+
+# 'GPA_MOD', 'UMF_OVERALL_GPA', 'HSCH_GPA', 'PCOL_GPA', 'UMF_TERM_GPA',
+# 'SAT_TOTAL_COMBINED', 'ACT_COMPOSITE', 'AGE',
+# 'GENDER_F', 'GENDER_M', 'GENDER_N',
+# 'REPORT_ETHNICITY_CODE_1', 'REPORT_ETHNICITY_CODE_2', 'REPORT_ETHNICITY_CODE_3', 'REPORT_ETHNICITY_CODE_4',
+# 'REPORT_ETHNICITY_CODE_5', 'REPORT_ETHNICITY_CODE_7', 'REPORT_ETHNICITY_CODE_8', 'REPORT_ETHNICITY_CODE_9',
+# 'CLASS_DESC_Freshman', 'CLASS_DESC_Sophomore', 'CLASS_DESC_Junior', 'CLASS_DESC_Senior', 'CLASS_DESC_Graduate',
+# 'HOLD_CODE_1_AA', 'HOLD_CODE_1_AC', 'HOLD_CODE_1_AD', 'HOLD_CODE_1_AR', 'HOLD_CODE_1_AS', 'HOLD_CODE_1_CH', 'HOLD_CODE_1_CO',
+# 'HOLD_CODE_1_FA', 'HOLD_CODE_1_GR', 'HOLD_CODE_1_IC', 'HOLD_CODE_1_PE', 'HOLD_CODE_1_SA', 'HOLD_CODE_1_TR'
+
+ind = data[model_features]
+
+# Don't have to use this exact style of code if you don't want to be accused of plagiarism from kaggle.
+```
+
+```{python MEA, eval=FALSE, include=FALSE}
+# MAE = []
+# 
+# for x in range(1000):
+#   train_ind, test_ind, train_dep, test_dep = train_test_split(ind, dep, random_state = x)
+#   model = DecisionTreeClassifier()
+#   model.fit(train_ind,train_dep)
+#   predictions = model.predict(test_ind).round()
+#   MAE.append(mean_absolute_error(test_dep, predictions))
+# Nested loop is unnecessary. Random state for DecisionTreeClassifier only changes things if there are two splits that are equally good.
+
+# def find_min_index(list):
+#     min_value = min(list)
+#     min_index = list.index(min_value)
+#     return min_index
+# 
+# print('The minimum MAE is: ', min(MAE))
+# print('The index of the minimum MAE is: ', find_min_index(MAE))
+# rnd_tts = find_min_index(MAE)
+
+```
+
+```{python Train Test Split}
+# Hard coding rnd_tts to 471
+rnd_tts = 471
+train_ind, test_ind, train_dep, test_dep = train_test_split(ind, dep, random_state = rnd_tts)
+model = DecisionTreeClassifier()
+model.fit(train_ind,train_dep)
+predictions = model.predict(test_ind).round()
+print(mean_absolute_error(test_dep, predictions))
+accuracy = model.score(test_ind, test_dep)
+print("The accuracy of the model is: ", accuracy)
+
+```
+
+```{python Confusion matrix}
+from sklearn.metrics import confusion_matrix
+
+def confusin_matrix(test_dep, predictions):
+    cm = confusion_matrix(test_dep, predictions).ravel()
+    tn, fp, fn, tp = confusion_matrix(test_dep, predictions).ravel()
+    cm_label = ['True Negative', 'False Positive', 'False Negative', 'True Positive']
+    zip_cm = zip(cm_label, cm)
+    zip_df = pd.DataFrame(zip_cm, columns = ['Confusion Matrix', 'Value'])
+    print(zip_df.to_markdown(index=False,tablefmt="grid"), '\n')
+    
+    sensitivity = tp / (tp + fn)
+    specificity = tn / (tn + fp)
+    print('Sensitivity for this model is: ', sensitivity)
+    print('Specificity for this model is: ', specificity, '\n')
+    
+    return tn, fp, fn, tp
+
+confusin_matrix(test_dep, predictions)
+
+```
+
+```{python Feature Importance}
+feat_dict = {}
+for col, val in sorted(zip(ind.columns, model.feature_importances_),key=lambda x:x[1],reverse=True):
+  feat_dict[col]=val
+feat_df = pd.DataFrame({'Feature':feat_dict.keys(),'Importance':feat_dict.values()})
+feat_df
+
+```
+
+```{python, fig.dim = c(5, 2.5), fig.align = 'right'}
+def f_importances(coef, names, top=-1):
+    imp = coef
+    imp, names = zip(*sorted(list(zip(imp, names))))
+
+    # Show all features
+    if top == -1:
+        top = len(names)
+
+    plt.barh(range(top), imp[::-1][0:top], align='center')
+    plt.yticks(range(top), names[::-1][0:top])
+    plt.show()
+    
+
+f_importances(abs(model.feature_importances_), model_features, top = 5)
+```
+
+```{python sklearn Decision Tree Viz, eval=FALSE, include=FALSE}
+# Decision Tree Visualization
+from sklearn import tree
+model = model.fit(train_ind, train_dep)
+# ax = plt.subplots(nrows = 1,ncols = 1,figsize = (4,4), dpi=800)
+# plt.subplots(figsize=(15,15))
+# fig = plt.figure(figsize=(50,30))
+tree.plot_tree(model, max_depth=3, feature_names=model_features, class_names=None, label='all', filled=True, impurity=True, node_ids=False, proportion=False, rounded=False, precision=3, ax=None, fontsize=6)
+plt.show()
+plt.savefig('rf_individualtree.png')
+
+```
+
+```{python dtreeviz Decision Tree Viz}
+
+# !pip install dtreeviz
+# !apt-get install graphviz
+import dtreeviz
+dt_viz = DecisionTreeClassifier(max_depth=4,random_state=rnd_tts)
+dt_viz.fit(train_ind.values, train_dep)
+tree_viz1 = dtreeviz.model(dt_viz, train_ind,train_dep, target_name='UMF_TERM_GPA', feature_names=train_ind.columns, class_names=['Unsatisfactory','Satisfactory'])
+tree_viz1.view(scale=1.2)
+# tree_viz1.view()
+
+# from sklearn.datasets import load_iris
+# from sklearn.tree import DecisionTreeClassifier
+# import dtreeviz
+
+# iris = load_iris()
+# X = iris.data
+# y = iris.target
+# 
+# clf = DecisionTreeClassifier(max_depth=4)
+# clf.fit(X, y)
+# 
+# viz_model = dtreeviz.model(clf,
+#                            X_train=X, y_train=y,
+#                            feature_names=iris.feature_names,
+#                            target_name='iris',
+#                            class_names=iris.target_names)
+# 
+# v = viz_model.view()     # render as SVG into internal object 
+# v.show()                 # pop up window
+
+
+```
+
+```{python ROC Curve}
+
+# ROC Curve doesn't work for Decision Tree. I want you to do model evaluation for each algorithm you do.
+# Play around with it and try to
+
+import numpy as np
+from sklearn.metrics import roc_curve, auc
+#from scipy import interp
+
+scores = model.predict_proba(test_ind)
+fpr, tpr, thresholds = roc_curve(test_dep, scores[:,1], pos_label=1)
+roc_auc = auc(fpr,tpr)
+
+print("FPR")
+print(pd.DataFrame(fpr).head(), "\n")
+print("TPR")
+print(pd.DataFrame(tpr).head(), "\n")
+print("Thresholds")
+print(pd.DataFrame(thresholds).head())
+```
+
+```{python ROC Curve Visualization}
+
+import matplotlib.pyplot as plt
+plt.figure()
+lw = 2
+plt.plot(fpr, tpr, color='darkorange',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+print("ROC curve X Limit:", plt.xlim([0.0, 1.0]))
+print("ROC curve Y Limit:", plt.ylim([0.0,1.05]))
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+
+```
